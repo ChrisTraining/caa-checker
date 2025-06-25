@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const puppeteer = require('puppeteer-core');
+const puppeteerCore = require('puppeteer-core');
 const chromium = require('chrome-aws-lambda');
 
 const app = express();
@@ -8,11 +8,16 @@ app.use(express.json());
 app.use(cors()); // Allow cross-origin requests
 
 async function checkFlyerID(flyerId, firstName, lastName) {
-  const browser = await puppeteer.launch({
-    args: chromium.args,
-    executablePath: await chromium.executablePath || '/usr/bin/chromium-browser',
-    headless: chromium.headless,
-  });
+  // Determine if running locally or on Render (or another AWS-compatible env)
+  const isDev = !process.env.AWS_REGION;
+
+  const browser = await (isDev
+    ? puppeteerCore.launch({ headless: true }) // local Puppeteer (make sure puppeteer is installed locally if you use this)
+    : chromium.puppeteer.launch({
+        args: chromium.args,
+        executablePath: await chromium.executablePath,
+        headless: chromium.headless,
+      }));
 
   const page = await browser.newPage();
 
