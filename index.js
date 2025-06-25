@@ -9,17 +9,16 @@ app.use(cors()); // Allow cross-origin requests
 
 async function checkFlyerID(flyerId, firstName, lastName) {
   // Detect if running locally (dev) or on Render (production)
-  const isDev = !process.env.RENDER;
+  const isDev = !process.env.AWS_REGION;
 
-  // Launch Puppeteer differently depending on environment
-  const browser = await (isDev
-    ? puppeteerCore.launch({ headless: true }) // local: use local Puppeteer with bundled Chromium
-    : puppeteerCore.launch({
-        args: chromium.args,
-        executablePath: '/usr/bin/chromium-browser', // Render-installed Chromium
-        headless: true,
-        ignoreHTTPSErrors: true,
-      }));
+const browser = await (isDev
+  ? puppeteerCore.launch({ headless: true })
+  : puppeteerCore.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      executablePath: '/usr/bin/chromium-browser', // explicitly use chromium-browser installed by aptPackages
+      headless: true,
+    }));
+
 
   const page = await browser.newPage();
 

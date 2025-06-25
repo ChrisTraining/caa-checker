@@ -1,13 +1,13 @@
 services:
   - type: web
-    name: caa-checker
+    name: your-service-name
     env: node
     plan: free
-    buildCommand: |
-      sudo apt-get update
-      sudo apt-get install -y chromium-browser
-      npm install --legacy-peer-deps
+    buildCommand: npm install --legacy-peer-deps
     startCommand: node index.js
+    aptPackages:
+      - chromium-browser
+
     envVars:
       - key: PORT
         value: 10000
