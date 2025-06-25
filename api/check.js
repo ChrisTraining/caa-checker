@@ -1,10 +1,10 @@
-const chromium = require('chrome-aws-lambda');
-const puppeteer = require('puppeteer-core');
+import chromium from 'chrome-aws-lambda';
+import puppeteer from 'puppeteer-core';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    res.setHeader('Allow', ['POST']);
-    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
+    res.status(405).json({ error: 'Method Not Allowed' });
+    return;
   }
 
   const { flyerId, firstName, lastName } = req.body;
