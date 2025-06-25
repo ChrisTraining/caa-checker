@@ -1,4 +1,5 @@
-import puppeteer from 'puppeteer';
+const chromium = require('chrome-aws-lambda');
+const puppeteer = require('puppeteer-core');
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
