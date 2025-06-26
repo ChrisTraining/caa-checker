@@ -12,5 +12,9 @@
   "puppeteer": "^21.3.8",        
   "puppeteer-core": "^21.3.8",     
   "chrome-aws-lambda": "^10.1.0"   
+},
+"engines": {
+  "node": "18.x"
 }
+
 }

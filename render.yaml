@@ -3,5 +3,5 @@ services:
     name: caa-checker
     env: node
     plan: free
-    buildCommand: npm install --legacy-peer-deps
+    buildCommand: npm install
     startCommand: node index.js
