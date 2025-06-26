@@ -2,6 +2,6 @@ services:
   - type: web
     name: caa-checker
     env: node
-    plan: free
     buildCommand: npm install
-    startCommand: npm start
+    startCommand: node index.js
+    plan: free
