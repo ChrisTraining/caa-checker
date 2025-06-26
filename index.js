@@ -1,16 +1,19 @@
 const express = require('express');
 const puppeteer = require('puppeteer-core');
-const { executablePath } = require('playwright').chromium;
+const { chromium } = require('playwright');
 
 const app = express();
 app.use(express.json());
 
-app.get('/', (req, res) => res.send('CAA Checker API is live'));
+app.get('/', (req, res) => {
+  res.send('CAA Checker is up');
+});
 
 async function checkFlyerID(flyerId, firstName, lastName) {
+  const browserFetcher = chromium;
   const browser = await puppeteer.launch({
+    executablePath: browserFetcher.executablePath(),
     headless: true,
-    executablePath: executablePath(),
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
   });
 
@@ -19,24 +22,17 @@ async function checkFlyerID(flyerId, firstName, lastName) {
   try {
     await page.goto('https://register-drones.caa.co.uk/check-a-registration', { waitUntil: 'networkidle2' });
 
-    await page.waitForSelector('#start-button', { visible: true, timeout: 10000 });
-    await Promise.all([
-      page.click('#start-button'),
-      page.waitForNavigation({ waitUntil: 'networkidle2' }),
-    ]);
+    await page.click('#start-button');
+    await page.waitForNavigation({ waitUntil: 'networkidle2' });
 
-    await page.waitForSelector('input[name="RegistrationNumber"]', { visible: true });
     await page.type('input[name="RegistrationNumber"]', flyerId);
-
     await Promise.all([
       page.click('button[type="submit"]'),
       page.waitForNavigation({ waitUntil: 'networkidle2' }),
     ]);
 
-    await page.waitForSelector('input[name="GivenName"]', { visible: true });
     await page.type('input[name="GivenName"]', firstName);
     await page.type('input[name="FamilyName"]', lastName);
-
     await Promise.all([
       page.click('button[type="submit"]'),
       page.waitForNavigation({ waitUntil: 'networkidle2' }),
@@ -56,6 +52,7 @@ async function checkFlyerID(flyerId, firstName, lastName) {
         const value = row.querySelector('.govuk-summary-card__row__field-value')?.innerText.trim();
         if (label && value) details[label] = value;
       });
+
       return {
         name: details['Name'] || null,
         flyerId: details['Flyer ID'] || null,
@@ -66,9 +63,9 @@ async function checkFlyerID(flyerId, firstName, lastName) {
 
     await browser.close();
     return data;
-  } catch (error) {
+  } catch (err) {
     await browser.close();
-    throw error;
+    throw err;
   }
 }
 
@@ -77,13 +74,14 @@ app.post('/check', async (req, res) => {
   if (!flyerId || !firstName || !lastName) {
     return res.status(400).json({ error: 'Missing flyerId, firstName or lastName' });
   }
+
   try {
     const result = await checkFlyerID(flyerId, firstName, lastName);
     res.json({ result });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message || 'Something went wrong' });
   }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
