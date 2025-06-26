@@ -1,48 +1,45 @@
 const express = require('express');
 const cors = require('cors');
-const puppeteerCore = require('puppeteer-core');
-const chromium = require('chrome-aws-lambda');
 
 const app = express();
 app.use(express.json());
-app.use(cors()); // Allow cross-origin requests
+app.use(cors());
+
+const isProduction = process.env.AWS_REGION || process.env.NODE_ENV === 'production';
+
+async function getBrowser() {
+  if (isProduction) {
+    const chromium = require('chrome-aws-lambda');
+    const puppeteer = require('puppeteer-core');
+    return puppeteer.launch({
+      args: chromium.args,
+      executablePath: await chromium.executablePath,
+      headless: chromium.headless,
+    });
+  } else {
+    const puppeteer = require('puppeteer');
+    return puppeteer.launch({ headless: true });
+  }
+}
 
 async function checkFlyerID(flyerId, firstName, lastName) {
-  // Detect if running locally (dev) or on Render (production)
-  const isDev = !process.env.AWS_REGION;
-
-const browser = await (isDev
-  ? puppeteerCore.launch({ headless: true })
-  : puppeteerCore.launch({
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      executablePath: '/usr/bin/chromium-browser', // explicitly use chromium-browser installed by aptPackages
-      headless: true,
-    }));
-
-
+  const browser = await getBrowser();
   const page = await browser.newPage();
 
   try {
     await page.goto('https://register-drones.caa.co.uk/check-a-registration', { waitUntil: 'networkidle2' });
 
-    await page.waitForSelector('#start-button', { visible: true, timeout: 10000 });
-    await Promise.all([
-      page.click('#start-button'),
-      page.waitForNavigation({ waitUntil: 'networkidle2' }),
-    ]);
+    await page.click('#start-button');
+    await page.waitForNavigation({ waitUntil: 'networkidle2' });
 
-    await page.waitForSelector('input[name="RegistrationNumber"]', { visible: true });
     await page.type('input[name="RegistrationNumber"]', flyerId);
-
     await Promise.all([
       page.click('button[type="submit"]'),
       page.waitForNavigation({ waitUntil: 'networkidle2' }),
     ]);
 
-    await page.waitForSelector('input[name="GivenName"]', { visible: true });
     await page.type('input[name="GivenName"]', firstName);
     await page.type('input[name="FamilyName"]', lastName);
-
     await Promise.all([
       page.click('button[type="submit"]'),
       page.waitForNavigation({ waitUntil: 'networkidle2' }),
@@ -59,15 +56,11 @@ const browser = await (isDev
       const details = {};
 
       rows.forEach(row => {
-        const labels = row.querySelectorAll('.govuk-summary-card__row__field-label');
+        const label = row.querySelector('.govuk-summary-card__row__field-label');
         const valueDiv = row.querySelector('.govuk-summary-card__row__field-value');
-
-        let key = labels[0]?.innerText.trim();
-        let value = valueDiv ? valueDiv.innerText.trim() : labels[1]?.innerText.trim();
-
-        if (key && value) {
-          details[key] = value;
-        }
+        const key = label?.innerText.trim();
+        const value = valueDiv?.innerText.trim();
+        if (key && value) details[key] = value;
       });
 
       return {
@@ -80,7 +73,6 @@ const browser = await (isDev
 
     await browser.close();
     return data;
-
   } catch (error) {
     await browser.close();
     console.error('[ERROR]', error.message);
