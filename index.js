@@ -4,12 +4,80 @@ const puppeteer = require('puppeteer');
 const app = express();
 app.use(express.json());
 
-// Simple GET / route to verify server is running
-app.get('/', (req, res) => {
-  res.send('API is running');
-});
+async function checkFlyerID(flyerId, firstName, lastName) {
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
 
-// Your existing /check POST route
+  const page = await browser.newPage();
+
+  try {
+    await page.goto('https://register-drones.caa.co.uk/check-a-registration', { waitUntil: 'networkidle2' });
+
+    await page.waitForSelector('#start-button', { visible: true, timeout: 10000 });
+    await Promise.all([
+      page.click('#start-button'),
+      page.waitForNavigation({ waitUntil: 'networkidle2' }),
+    ]);
+
+    await page.waitForSelector('input[name="RegistrationNumber"]', { visible: true });
+    await page.type('input[name="RegistrationNumber"]', flyerId);
+
+    await Promise.all([
+      page.click('button[type="submit"]'),
+      page.waitForNavigation({ waitUntil: 'networkidle2' }),
+    ]);
+
+    await page.waitForSelector('input[name="GivenName"]', { visible: true });
+    await page.type('input[name="GivenName"]', firstName);
+    await page.type('input[name="FamilyName"]', lastName);
+
+    await Promise.all([
+      page.click('button[type="submit"]'),
+      page.waitForNavigation({ waitUntil: 'networkidle2' }),
+    ]);
+
+    const errorMessage = await page.$('.govuk-error-summary');
+    if (errorMessage) {
+      const text = await page.evaluate(el => el.innerText, errorMessage);
+      throw new Error('Validation failed: ' + text.trim());
+    }
+
+    const data = await page.evaluate(() => {
+      const rows = document.querySelectorAll('.govuk-summary-card__row');
+      const details = {};
+
+      rows.forEach(row => {
+        const labels = row.querySelectorAll('.govuk-summary-card__row__field-label');
+        const valueDiv = row.querySelector('.govuk-summary-card__row__field-value');
+
+        let key = labels[0]?.innerText.trim();
+        let value = valueDiv ? valueDiv.innerText.trim() : labels[1]?.innerText.trim();
+
+        if (key && value) {
+          details[key] = value;
+        }
+      });
+
+      return {
+        name: details['Name'] || null,
+        flyerId: details['Flyer ID'] || null,
+        status: details['Status'] || null,
+        expiry: details['Expiry date'] || null,
+      };
+    });
+
+    await browser.close();
+    return data;
+
+  } catch (error) {
+    await browser.close();
+    console.error('[ERROR]', error.message);
+    throw error;
+  }
+}
+
 app.post('/check', async (req, res) => {
   const { flyerId, firstName, lastName } = req.body;
 
@@ -24,69 +92,6 @@ app.post('/check', async (req, res) => {
     res.status(500).json({ error: error.message || 'Failed to fetch data' });
   }
 });
-
-// Your puppeteer function here (unchanged)
-async function checkFlyerID(flyerId, firstName, lastName) {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
-
-  const page = await browser.newPage();
-
-  try {
-    await page.goto('https://register-drones.caa.co.uk/check-a-registration', { waitUntil: 'networkidle2' });
-    await page.waitForSelector('#start-button', { visible: true, timeout: 10000 });
-    await Promise.all([
-      page.click('#start-button'),
-      page.waitForNavigation({ waitUntil: 'networkidle2' }),
-    ]);
-    await page.waitForSelector('input[name="RegistrationNumber"]', { visible: true });
-    await page.type('input[name="RegistrationNumber"]', flyerId);
-    await Promise.all([
-      page.click('button[type="submit"]'),
-      page.waitForNavigation({ waitUntil: 'networkidle2' }),
-    ]);
-    await page.waitForSelector('input[name="GivenName"]', { visible: true });
-    await page.type('input[name="GivenName"]', firstName);
-    await page.type('input[name="FamilyName"]', lastName);
-    await Promise.all([
-      page.click('button[type="submit"]'),
-      page.waitForNavigation({ waitUntil: 'networkidle2' }),
-    ]);
-    const errorMessage = await page.$('.govuk-error-summary');
-    if (errorMessage) {
-      const text = await page.evaluate(el => el.innerText, errorMessage);
-      throw new Error('Validation failed: ' + text.trim());
-    }
-    const data = await page.evaluate(() => {
-      const rows = document.querySelectorAll('.govuk-summary-card__row');
-      const details = {};
-      rows.forEach(row => {
-        const labels = row.querySelectorAll('.govuk-summary-card__row__field-label');
-        const valueDiv = row.querySelector('.govuk-summary-card__row__field-value');
-        let key = labels[0]?.innerText.trim();
-        let value = valueDiv ? valueDiv.innerText.trim() : labels[1]?.innerText.trim();
-        if (key && value) {
-          details[key] = value;
-        }
-      });
-      return {
-        name: details['Name'] || null,
-        flyerId: details['Flyer ID'] || null,
-        status: details['Status'] || null,
-        expiry: details['Expiry date'] || null,
-      };
-    });
-
-    await browser.close();
-    return data;
-
-  } catch (error) {
-    await browser.close();
-    throw error;
-  }
-}
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));

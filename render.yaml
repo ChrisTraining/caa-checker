@@ -3,5 +3,8 @@ services:
     name: caa-checker
     env: node
     plan: free
-    buildCommand: npm install
+    buildCommand: npm install --legacy-peer-deps
     startCommand: node index.js
+    envVars:
+      - key: PORT
+        value: 10000
