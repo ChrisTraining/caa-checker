@@ -2,17 +2,11 @@
   "name": "caa-checker",
   "version": "1.0.0",
   "main": "index.js",
-  "type": "commonjs",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "chrome-aws-lambda": "^10.1.0",
-    "cors": "^2.8.5",
     "express": "^4.18.2",
-    "puppeteer": "^23.0.0"
-  },
-  "engines": {
-    "node": "18.x"
+    "puppeteer": "^22.8.2"
   }
 }
