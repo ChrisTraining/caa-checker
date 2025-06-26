@@ -13,6 +13,6 @@
     "express": "...",
     "cors": "...",
     "puppeteer-core": "^14.1.0",
-    "chrome-aws-lambda": "^14.0.0"
+    "chrome-aws-lambda": "10.1.0"
 }
 }
