@@ -4,6 +4,10 @@ const puppeteer = require('puppeteer');
 const app = express();
 app.use(express.json());
 
+app.get('/', (req, res) => {
+  res.send('API is running');
+});
+
 async function checkFlyerID(flyerId, firstName, lastName) {
   const browser = await puppeteer.launch({
     headless: true,
